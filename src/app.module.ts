@@ -9,10 +9,11 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { HospitalModule } from './hospital/hospital.module';
 import { ChatGateway } from './chat/chat.gateway';
+import { PrismaService } from './prisma.service';
 
 @Module({
   imports: [MessageModule, RoomModule, RoomUserModule, UserModule, AuthModule, HospitalModule],
   controllers: [AppController],
-  providers: [AppService, RoomUserService, ChatGateway],
+  providers: [AppService, RoomUserService, PrismaService, ChatGateway],
 })
 export class AppModule {}

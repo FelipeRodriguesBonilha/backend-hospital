@@ -6,11 +6,14 @@ import { UpdateMessageDto } from './__dtos__/update-message.dto';
 
 @Injectable()
 export class MessageService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService
+    ) { }
 
     async create(createMessageDto: CreateMessageDto): Promise<Message> {
         const createdMessage = await this.prisma.message.create({
             data: createMessageDto,
+            include: { sender: true }
         });
 
         return createdMessage;
@@ -45,5 +48,15 @@ export class MessageService {
         });
 
         return deletedMessage;
+    }
+
+    async findAllMessagesByRoom(roomId: string) {
+        const allMessagesByRoom = await this.prisma.message.findMany({
+            where: { roomId },
+            orderBy: { createdAt: 'asc' },
+            include: { sender: true }
+        });
+
+        return allMessagesByRoom;
     }
 }

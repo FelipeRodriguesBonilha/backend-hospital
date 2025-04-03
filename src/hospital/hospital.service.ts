@@ -6,7 +6,9 @@ import { UpdateHospitalDto } from './__dtos__/update-hospital.dto';
 
 @Injectable()
 export class HospitalService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService
+    ) { }
 
     async create(createHospitalDto: CreateHospitalDto): Promise<Hospital> {
         const createdHospital = await this.prisma.hospital.create({
