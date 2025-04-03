@@ -13,6 +13,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Role {
+  id    String @id @default(uuid())
+  name  String @unique
+  users User[]
+
+  @@map("ROLE")
+}
+
 model Hospital {
   id          String    @id @default(uuid())
   companyName String
@@ -57,16 +65,17 @@ model RoomUser {
 model User {
   id          String    @id @default(uuid())
   hospitalId  String
+  roleId      String
   name        String
   cpf         String    @unique
   phone       String
   email       String    @unique
   password    String
-  role        String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   
   hospital    Hospital  @relation(fields: [hospitalId], references: [id])
+  role        Role      @relation(fields: [roleId], references: [id])
 
   messages    Message[]
   messageViewedUsers MessageViewedUser[]

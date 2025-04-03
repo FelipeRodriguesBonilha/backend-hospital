@@ -3,7 +3,10 @@ import { Message } from '@prisma/client';
 import { CreateMessageDto } from './__dtos__/create-message.dto';
 import { UpdateMessageDto } from './__dtos__/update-message.dto';
 import { MessageService } from './message.service';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/user/enum/role.enum';
 
+@Roles(Role.AdministradorHospital, Role.Medico, Role.Recepcionista)
 @Controller('messages')
 export class MessageController {
     constructor(private readonly messageService: MessageService) { }

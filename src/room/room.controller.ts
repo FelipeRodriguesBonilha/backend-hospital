@@ -5,7 +5,10 @@ import { UpdateRoomDto } from './__dtos__/update-room.dto';
 import { RoomService } from './room.service';
 import { JoinRoomDto } from 'src/room-user/__dtos__/join-room.dto';
 import { LeaveRoomDto } from 'src/room-user/__dtos__/leave-room.dto';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/user/enum/role.enum';
 
+@Roles(Role.AdministradorHospital, Role.Medico, Role.Recepcionista)
 @Controller('room')
 export class RoomController {
     constructor(private readonly roomService: RoomService) { }

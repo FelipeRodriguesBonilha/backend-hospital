@@ -3,7 +3,10 @@ import { User } from '@prisma/client';
 import { CreateUserDto } from './__dtos__/create-user.dto';
 import { UpdateUserDto } from './__dtos__/update-user.dto';
 import { UserService } from './user.service';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from './enum/role.enum';
 
+@Roles(Role.AdministradorGeral, Role.AdministradorHospital, Role.Medico, Role.Recepcionista)
 @Controller('user')
 export class UserController {
     constructor(private readonly userService: UserService) { }

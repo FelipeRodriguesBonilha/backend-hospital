@@ -26,4 +26,9 @@ export class UpdateUserDto {
     @IsEmail()
     @IsNotEmpty()
     email: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    roleId: string;
 }

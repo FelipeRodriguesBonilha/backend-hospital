@@ -3,7 +3,10 @@ import { Hospital } from '@prisma/client';
 import { CreateHospitalDto } from './__dtos__/create-hospital.dto';
 import { UpdateHospitalDto } from './__dtos__/update-hospital.dto';
 import { HospitalService } from './hospital.service';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/user/enum/role.enum';
 
+@Roles(Role.AdministradorGeral)
 @Controller('hospital')
 export class HospitalController {
     constructor(private readonly hospitalService: HospitalService) { }

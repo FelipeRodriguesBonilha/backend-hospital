@@ -12,9 +12,9 @@ export class UserService {
         const createdUser = await this.prisma.user.create({
             data: createUserDto,
         });
-    
+
         return createdUser;
-    }    
+    }
 
     async findAll(): Promise<User[]> {
         const users = await this.prisma.user.findMany();
@@ -25,6 +25,7 @@ export class UserService {
     async findById(id: string): Promise<User> {
         const user = await this.prisma.user.findUnique({
             where: { id },
+            include: { role: true }
         });
 
         return user;
@@ -46,4 +47,24 @@ export class UserService {
 
         return deletedUser;
     }
+
+    async findByEmail(email: string): Promise<User | null> {
+        return this.prisma.user.findUnique({
+            where: { email },
+        });
+    }
+
+    async getRolesByUserId(userId: string): Promise<string[]> {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            include: { role: true }
+        });
+
+        if (!user || !user.role) {
+            return [];
+        }
+
+        return [user.role.name];
+    }
+
 }

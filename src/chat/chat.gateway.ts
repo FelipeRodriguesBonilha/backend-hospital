@@ -27,8 +27,6 @@ export class ChatGateway {
     if (user) {
       const rooms = await this.roomService.findAllRoomsByUser(user.id);
 
-      console.log(rooms)
-
       client.emit('rooms', rooms);
     }
   }
