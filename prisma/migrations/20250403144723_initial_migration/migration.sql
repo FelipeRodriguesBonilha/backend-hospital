@@ -1,0 +1,127 @@
+-- CreateTable
+CREATE TABLE "HOSPITAL" (
+    "id" TEXT NOT NULL,
+    "companyName" TEXT NOT NULL,
+    "cnpj" TEXT NOT NULL,
+    "phone" TEXT,
+
+    CONSTRAINT "HOSPITAL_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ROOM" (
+    "id" TEXT NOT NULL,
+    "hospitalId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ROOM_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ROOM_USER" (
+    "id" TEXT NOT NULL,
+    "roomId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ROOM_USER_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "USER" (
+    "id" TEXT NOT NULL,
+    "hospitalId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "cpf" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "USER_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MESSAGE" (
+    "id" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    "roomId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MESSAGE_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MESSAGE_VIEWED_USER" (
+    "id" TEXT NOT NULL,
+    "messageId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "MESSAGE_VIEWED_USER_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PATIENT" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "cpf" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "address" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PATIENT_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "HOSPITAL_cnpj_key" ON "HOSPITAL"("cnpj");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ROOM_USER_roomId_userId_key" ON "ROOM_USER"("roomId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "USER_cpf_key" ON "USER"("cpf");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "USER_email_key" ON "USER"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MESSAGE_VIEWED_USER_messageId_userId_key" ON "MESSAGE_VIEWED_USER"("messageId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PATIENT_cpf_key" ON "PATIENT"("cpf");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PATIENT_email_key" ON "PATIENT"("email");
+
+-- AddForeignKey
+ALTER TABLE "ROOM" ADD CONSTRAINT "ROOM_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "HOSPITAL"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ROOM_USER" ADD CONSTRAINT "ROOM_USER_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "ROOM"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ROOM_USER" ADD CONSTRAINT "ROOM_USER_userId_fkey" FOREIGN KEY ("userId") REFERENCES "USER"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "USER" ADD CONSTRAINT "USER_hospitalId_fkey" FOREIGN KEY ("hospitalId") REFERENCES "HOSPITAL"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MESSAGE" ADD CONSTRAINT "MESSAGE_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "USER"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MESSAGE" ADD CONSTRAINT "MESSAGE_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "ROOM"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MESSAGE_VIEWED_USER" ADD CONSTRAINT "MESSAGE_VIEWED_USER_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "MESSAGE"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MESSAGE_VIEWED_USER" ADD CONSTRAINT "MESSAGE_VIEWED_USER_userId_fkey" FOREIGN KEY ("userId") REFERENCES "USER"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

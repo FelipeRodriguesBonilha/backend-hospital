@@ -12,3 +12,107 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model Hospital {
+  id          String    @id @default(uuid())
+  companyName String
+  cnpj        String    @unique
+  phone       String?
+  
+  users       User[]
+  rooms       Room[]
+  
+  @@map("HOSPITAL")
+}
+
+model Room {
+  id          String    @id @default(uuid())
+  hospitalId  String
+  name        String
+  description String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  hospital    Hospital  @relation(fields: [hospitalId], references: [id])
+
+  messages    Message[]
+  roomUsers   RoomUser[]
+  
+  @@map("ROOM")
+}
+
+model RoomUser {
+  id        String    @id @default(uuid())
+  roomId    String
+  userId    String
+  createdAt DateTime  @default(now())
+  
+  room      Room      @relation(fields: [roomId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+  
+  @@unique([roomId, userId])
+  @@map("ROOM_USER")
+}
+
+model User {
+  id          String    @id @default(uuid())
+  hospitalId  String
+  name        String
+  cpf         String    @unique
+  phone       String
+  email       String    @unique
+  password    String
+  role        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  hospital    Hospital  @relation(fields: [hospitalId], references: [id])
+
+  messages    Message[]
+  messageViewedUsers MessageViewedUser[]
+  roomUsers   RoomUser[]
+  
+  @@map("USER")
+}
+
+model Message {
+  id         String    @id @default(uuid())
+  content    String
+  senderId   String
+  roomId     String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  sender     User      @relation(fields: [senderId], references: [id])
+  room       Room      @relation(fields: [roomId], references: [id])
+
+  messageViewedUsers MessageViewedUser[]
+  
+  @@map("MESSAGE")
+}
+
+model MessageViewedUser {
+  id         String    @id @default(uuid())
+  messageId  String
+  userId     String
+  
+  message    Message   @relation(fields: [messageId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+  
+  @@unique([messageId, userId])
+  
+  @@map("MESSAGE_VIEWED_USER")
+}
+
+model Patient {
+  id         String    @id @default(uuid())
+  name       String
+  cpf        String    @unique
+  phone      String
+  email      String    @unique
+  address    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  @@map("PATIENT")
+}
