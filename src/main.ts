@@ -17,7 +17,17 @@ async function bootstrap() {
     .setDescription('Documentação oficial da aplicação de Sistema Integrado para Clinícas e Hospitais para TCC de Ciência da Computação na FEMA')
     .setVersion('1.0')
     .addTag('cats')
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'Authorization',
+        in: 'header',
+        description: 'Insira seu token JWT sem prefixo'
+      },
+      'JWT-auth'
+    )
     .build();
+
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
 

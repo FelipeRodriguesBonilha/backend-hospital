@@ -5,8 +5,10 @@ import { UpdateUserDto } from './__dtos__/update-user.dto';
 import { UserService } from './user.service';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from './enum/role.enum';
+import { ApiBasicAuth } from '@nestjs/swagger';
 
-@Roles(Role.AdministradorGeral, Role.AdministradorHospital, Role.Medico, Role.Recepcionista)
+@ApiBasicAuth()
+@Roles(Role.AdministradorGeral)
 @Controller('user')
 export class UserController {
     constructor(private readonly userService: UserService) { }

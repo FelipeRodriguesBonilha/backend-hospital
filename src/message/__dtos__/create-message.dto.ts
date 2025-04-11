@@ -10,10 +10,5 @@ export class CreateMessageDto {
     @ApiProperty()
     @IsString()
     @IsNotEmpty()
-    senderId: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
     roomId: string;
 }

@@ -5,8 +5,4 @@ export class LeaveRoomDto {
     @ApiProperty()
     @IsUUID()
     roomId: string;
-
-    @ApiProperty()
-    @IsUUID()
-    userId: string;
 }

@@ -9,10 +9,31 @@ import { PrismaService } from './prisma.service';
 import { RoomUserModule } from './room-user/room-user.module';
 import { RoomModule } from './room/room.module';
 import { UserModule } from './user/user.module';
+import { APP_GUARD } from '@nestjs/core';
+import { RolesGuard } from './guards/roles.guard';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-  imports: [MessageModule, RoomModule, RoomUserModule, UserModule, AuthModule, HospitalModule],
-  controllers: [AppController],
-  providers: [AppService, PrismaService, ChatGateway],
+  imports: [
+    MessageModule, 
+    RoomModule, 
+    RoomUserModule, 
+    UserModule, 
+    AuthModule, 
+    HospitalModule, 
+    JwtModule,
+  ],
+  controllers: [
+    AppController
+  ],
+  providers: [
+    AppService, 
+    PrismaService, 
+    ChatGateway,
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    }
+  ],
 })
 export class AppModule {}
