@@ -7,9 +7,12 @@ export class ReturnMessageDto {
     content: string;
     senderId: string;
     roomId: string;
+    createdAt?: Date;
 
     sender: ReturnUserDto;
-    room: ReturnRoomDto
+    room: ReturnRoomDto;
+
+    seenByAll?: boolean;
 
     constructor(
         message: Message & { room?: Room, sender?: User }
@@ -18,6 +21,7 @@ export class ReturnMessageDto {
         this.content = message.content;
         this.senderId = message.senderId;
         this.roomId = message.roomId;
+        this.createdAt = message.createdAt;
         this.room = message.room ? new ReturnRoomDto(message.room) : undefined;
         this.sender = message.sender ? new ReturnUserDto(message.sender) : undefined;
     }

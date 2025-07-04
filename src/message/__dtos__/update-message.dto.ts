@@ -1,9 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString } from "class-validator";
+import { PartialType } from "@nestjs/swagger";
+import { CreateMessageDto } from "./create-message.dto";
 
-export class UpdateMessageDto {
-    @ApiProperty()
-    @IsString()
-    @IsNotEmpty()
-    content: string;
-}
+export class UpdateMessageDto extends PartialType(CreateMessageDto) {}

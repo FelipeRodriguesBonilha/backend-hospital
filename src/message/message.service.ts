@@ -1,21 +1,27 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Message } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
 import { CreateMessageDto } from './__dtos__/create-message.dto';
 import { UpdateMessageDto } from './__dtos__/update-message.dto';
 import { UserService } from 'src/user/user.service';
 import { RoomService } from 'src/room/room.service';
+import { RoomUserService } from 'src/room-user/room-user.service';
 
 @Injectable()
 export class MessageService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly userService: UserService,
-        private readonly roomService: RoomService
+        private readonly roomService: RoomService,
+        private readonly roomUserService: RoomUserService
     ) { }
 
     async create(createMessageDto: CreateMessageDto, userId: string): Promise<Message> {
         const user = await this.userService.findById(userId);
+
+        console.log('createMessageDto', createMessageDto);
+
+        console.log('user no create', user);
 
         if (!user) {
             throw new NotFoundException('Usuário não encontrado!');
@@ -139,5 +145,69 @@ export class MessageService {
         });
 
         return allMessagesByRoom;
+    }
+
+    async markAllMessagesNotReadAsRead(roomId: string, userId: string): Promise<Message[]> {
+        const unreadMessages = await this.prisma.message.findMany({
+            where: {
+                roomId,
+                senderId: { not: userId },
+                messageViewedUsers: {
+                    none: { userId },
+                },
+            },
+        });
+
+        if (unreadMessages.length === 0) {
+            throw new BadRequestException('Todas as mensagens já foram visualizadas pelo usuário!')
+        }
+
+        const createData = unreadMessages.map((message: Message) => ({
+            messageId: message.id,
+            userId,
+        }));
+
+        await this.prisma.messageViewedUser.createMany({
+            data: createData,
+            skipDuplicates: true,
+        });
+
+        return unreadMessages;
+    }
+
+
+    async isMessageSeenByAllUsers(messageId: string, roomId: string): Promise<boolean> {
+        const usersInRoom = await this.prisma.roomUser.findMany({
+            where: { roomId },
+            select: { userId: true }
+        });
+
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+            select: { senderId: true }
+        });
+
+        if (!message) {
+            throw new NotFoundException('Mensagem não encontrada!');
+        }
+
+        const otherUsersInRoom = usersInRoom.filter((user) =>
+            user.userId !== message.senderId
+        );
+
+        if (otherUsersInRoom.length === 0) {
+            return true;
+        }
+
+        const viewedCount = await this.prisma.messageViewedUser.count({
+            where: {
+                messageId,
+                userId: {
+                    in: otherUsersInRoom.map((user) => user.userId)
+                }
+            }
+        });
+
+        return viewedCount === otherUsersInRoom.length;
     }
 }
