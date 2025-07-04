@@ -1,18 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsOptional, IsString, Length } from "class-validator";
+import { PartialType } from "@nestjs/swagger";
+import { CreateHospitalDto } from "./create-hospital.dto";
 
-export class UpdateHospitalDto {
-    @ApiProperty()
-    @IsString()
-    companyName: string;
-
-    @ApiProperty()
-    @IsString()
-    @Length(14, 14)
-    cnpj: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsOptional()
-    phone?: string;
-}
+export class UpdateHospitalDto extends PartialType(CreateHospitalDto) { }

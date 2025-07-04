@@ -1,14 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
+import { CreateRoomDto } from './create-room.dto';
 
-export class UpdateRoomDto {
-    @ApiProperty()
-    @IsString()
-    @IsOptional()
-    name?: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsOptional()
-    description?: string;
-}
+export class UpdateRoomDto extends PartialType(CreateRoomDto) { }

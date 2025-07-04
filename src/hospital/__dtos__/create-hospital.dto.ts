@@ -1,18 +1,18 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsString, Length } from "class-validator";
 
 export class CreateHospitalDto {
-    @ApiProperty()
+    @ApiProperty({ description: 'Razão social do hospital', example: 'Hospital das Clínicas Ltda' })
     @IsString()
     companyName: string;
 
-    @ApiProperty()
+    @ApiProperty({ description: 'CNPJ do hospital (14 dígitos)', example: '12345678000199' })
     @IsString()
     @Length(14, 14)
     cnpj: string;
 
-    @ApiProperty()
-    @IsString()
+    @ApiPropertyOptional({ description: 'Telefone de contato', example: '11999999999' })
     @IsOptional()
+    @IsString()
     phone?: string;
 }
