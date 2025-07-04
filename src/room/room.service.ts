@@ -65,12 +65,14 @@ export class RoomService {
     }
 
     async update(id: string, updateRoomDto: UpdateRoomDto, userId: string): Promise<Room> {
-        //implementar lógica depois para somente criador da sala poder editar
-
         const room = await this.findById(id, userId);
 
         if (!room) {
             throw new NotFoundException('Sala não encontrada!')
+        }
+
+        if (room.adminId !== userId) {
+            throw new ForbiddenException('Usuário não é o criador da sala!');
         }
 
         const updatedRoom = await this.prisma.room.update({
@@ -85,12 +87,14 @@ export class RoomService {
     }
 
     async remove(id: string, userId: string): Promise<Room> {
-        //implementar lógica depois para somente criador da sala poder excluir
-
         const room = await this.findById(id, userId);
 
         if (!room) {
             throw new NotFoundException('Sala não encontrada!')
+        }
+
+        if (room.adminId !== userId) {
+            throw new ForbiddenException('Usuário não é o criador da sala!');
         }
 
         const deletedRoom = await this.prisma.room.delete({
