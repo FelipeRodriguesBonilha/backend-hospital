@@ -4,10 +4,10 @@ import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSo
 import { Message, RoomUser } from '@prisma/client';
 import { Server, Socket } from 'socket.io';
 import { LoginPayloadDto } from 'src/auth/__dtos__/login-payload.dto';
+import { ConnectRoomDto } from 'src/chat/__dtos__/connect-room.dto';
 import { CreateMessageDto } from 'src/message/__dtos__/create-message.dto';
 import { ReturnMessageDto } from 'src/message/__dtos__/return-message.dto';
 import { MessageService } from 'src/message/message.service';
-import { ConnectRoomDto } from 'src/room-user/__dtos__/connect-room.dto';
 import { JoinRoomDto } from 'src/room-user/__dtos__/join-room.dto';
 import { LeaveRoomDto } from 'src/room-user/__dtos__/leave-room.dto';
 import { ReturnRoomUserDto } from 'src/room-user/__dtos__/return-room-user.dto';
@@ -26,9 +26,11 @@ export class ChatGateway {
     private messageService: MessageService,
     private roomService: RoomService,
     private jwtService: JwtService
-  ) {}
+  ) { }
 
-  async handleConnection(client: Socket) {
+  async handleConnection(
+    client: Socket
+  ) {
     try {
       const authorization = client.handshake.auth.authorization;
 
@@ -49,6 +51,8 @@ export class ChatGateway {
       this.logger.debug(`Payload decodificado: ${JSON.stringify(loginPayload)}`);
 
       const user = await this.userService.findById(loginPayload.id);
+
+      console.log(user);
 
       if (!user) {
         this.logger.warn(`Usuário não encontrado com ID: ${loginPayload.id}`);
@@ -77,7 +81,10 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('connect-room')
-  async connectRoom(@MessageBody() connectRoomDto: ConnectRoomDto, @ConnectedSocket() client: Socket) {
+  async connectRoom(
+    @MessageBody() connectRoomDto: ConnectRoomDto, 
+    @ConnectedSocket() client: Socket
+  ) {
     try {
       this.logger.verbose(`Solicitação para conectar à sala: ${JSON.stringify(connectRoomDto)}`);
       const userId = client.data.userId;
@@ -91,7 +98,7 @@ export class ChatGateway {
 
       const room = await this.roomService.findById(connectRoomDto.roomId, userId);
 
-      if(!room){
+      if (!room) {
         this.logger.warn(`Sala não encontrada ao tentar se conectar: ${room.name}`);
         throw new NotFoundException('Sala não encontrada!');
       }
@@ -103,8 +110,16 @@ export class ChatGateway {
         (roomUser: RoomUser) => new ReturnRoomUserDto(roomUser),
       );
 
-      const messages = (await this.messageService.findAllMessagesByRoom(connectRoomDto.roomId, userId)).map(
-        (message: Message) => new ReturnMessageDto(message),
+      const messages = await Promise.all(
+        (await this.messageService.findAllMessagesByRoom(connectRoomDto.roomId, userId)).map(
+          async (message: Message) => {
+            const messageDto = new ReturnMessageDto(message);
+
+            messageDto.seenByAll = await this.messageService.isMessageSeenByAllUsers(message.id, connectRoomDto.roomId);
+
+            return messageDto;
+          }
+        )
       );
 
       this.logger.debug(`Sala ${connectRoomDto.roomId} possui ${usersInRoom.length} usuários e ${messages.length} mensagens`);
@@ -117,7 +132,10 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('disconnect-room')
-  async disconnectRoom(@MessageBody() connectRoomDto: ConnectRoomDto, @ConnectedSocket() client: Socket) {
+  async disconnectRoom(
+    @MessageBody() connectRoomDto: ConnectRoomDto, 
+    @ConnectedSocket() client: Socket
+  ) {
     try {
       this.logger.verbose(`Solicitação para sair da sala: ${connectRoomDto.roomId}`);
       const userId = client.data.userId;
@@ -144,7 +162,10 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('join-room')
-  async joinRoom(@MessageBody() joinRoomDto: JoinRoomDto, @ConnectedSocket() client: Socket) {
+  async joinRoom(
+    @MessageBody() joinRoomDto: JoinRoomDto, 
+    @ConnectedSocket() client: Socket
+  ) {
     try {
       this.logger.verbose(`Usuário solicitou entrada na sala: ${JSON.stringify(joinRoomDto)}`);
       const userId = client.data.userId;
@@ -171,7 +192,10 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('leave-room')
-  async leaveRoom(@MessageBody() leaveRoomDto: LeaveRoomDto, @ConnectedSocket() client: Socket) {
+  async leaveRoom(
+    @MessageBody() leaveRoomDto: LeaveRoomDto, 
+    @ConnectedSocket() client: Socket
+  ) {
     try {
       this.logger.verbose(`Usuário solicitou saída da sala: ${JSON.stringify(leaveRoomDto)}`);
       const userId = client.data.userId;
@@ -198,7 +222,10 @@ export class ChatGateway {
   }
 
   @SubscribeMessage('send-message')
-  async sendMessage(@MessageBody() createMessageDto: CreateMessageDto, @ConnectedSocket() client: Socket) {
+  async sendMessage(
+    @MessageBody() createMessageDto: CreateMessageDto, 
+    @ConnectedSocket() client: Socket
+  ) {
     try {
       this.logger.verbose(`Mensagem recebida para a sala: ${JSON.stringify(createMessageDto)}`);
       const userId = client.data.userId;
@@ -209,9 +236,15 @@ export class ChatGateway {
         throw new NotFoundException('Usuário não encontrado!');
       }
 
-      const message: ReturnMessageDto = new ReturnMessageDto(
-        await this.messageService.create(createMessageDto, userId),
+      const createdMessage = await this.messageService.create(createMessageDto, userId);
+
+      const seenByAll = await this.messageService.isMessageSeenByAllUsers(
+        createdMessage.id,
+        createMessageDto.roomId
       );
+
+      const message = new ReturnMessageDto(createdMessage);
+      message.seenByAll = seenByAll;
 
       this.logger.log(`Mensagem enviada para sala ${createMessageDto.roomId} por ${user.name}`);
 
@@ -241,5 +274,39 @@ export class ChatGateway {
         this.server.to(user.id).emit('rooms', userRooms);
       }),
     );
+  }
+
+  @SubscribeMessage('read-messages')
+  async handleReadMessages(
+    @MessageBody() data: { roomId: string },
+    @ConnectedSocket() client: Socket
+  ) {
+    try {
+      const userId = client.data.userId;
+      const user = await this.userService.findById(userId);
+
+      if (!user) {
+        throw new NotFoundException('Usuário não encontrado!');
+      }
+
+      await this.messageService.markAllMessagesNotReadAsRead(data.roomId, userId);
+      this.logger.log(`Mensagens da sala ${data.roomId} marcadas como lidas pelo usuário ${userId}`);
+
+      const messagesInRoom = await this.messageService.findAllMessagesByRoom(data.roomId, userId);
+
+      await Promise.all(messagesInRoom.map(async (message) => {
+        const seenByAll = await this.messageService.isMessageSeenByAllUsers(message.id, data.roomId);
+
+        if (seenByAll) {
+          this.server.to(data.roomId).emit('message-seen-by-all', {
+            messageId: message.id,
+            seenByAll
+          });
+        }
+      }));
+
+    } catch (error) {
+      this.logger.error(`Erro ao marcar mensagens como lidas: ${error?.message}`);
+    }
   }
 }
