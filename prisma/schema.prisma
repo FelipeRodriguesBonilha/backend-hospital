@@ -16,7 +16,7 @@ datasource db {
 model Role {
   id    String @id @default(uuid())
   name  String @unique
-  users User[]
+  users User[] @relation("RoleToUser")
 
   @@map("ROLE")
 }
@@ -27,8 +27,10 @@ model Hospital {
   cnpj        String    @unique
   phone       String?
   
-  users       User[]
-  rooms       Room[]
+  users       User[]       @relation("HospitalToUser")
+  rooms       Room[]       @relation("HospitalToRoom")
+  schedulings Scheduling[] @relation("HospitalToScheduling")
+  exams       Exam[]       @relation("HospitalToExam")
   
   @@map("HOSPITAL")
 }
@@ -36,15 +38,17 @@ model Hospital {
 model Room {
   id          String    @id @default(uuid())
   hospitalId  String
+  adminId     String?
   name        String
   description String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   
-  hospital    Hospital  @relation(fields: [hospitalId], references: [id])
+  hospital    Hospital  @relation("HospitalToRoom", fields: [hospitalId], references: [id])
+  admin       User?     @relation("RoomAdmin", fields: [adminId], references: [id])
 
-  messages    Message[]
-  roomUsers   RoomUser[]
+  messages    Message[]  @relation("RoomToMessage")
+  roomUsers   RoomUser[] @relation("RoomToRoomUser")
   
   @@map("ROOM")
 }
@@ -55,8 +59,8 @@ model RoomUser {
   userId    String
   createdAt DateTime  @default(now())
   
-  room      Room      @relation(fields: [roomId], references: [id])
-  user      User      @relation(fields: [userId], references: [id])
+  room      Room      @relation("RoomToRoomUser", fields: [roomId], references: [id])
+  user      User      @relation("UserToRoomUser", fields: [userId], references: [id])
   
   @@unique([roomId, userId])
   @@map("ROOM_USER")
@@ -74,12 +78,19 @@ model User {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   
-  hospital    Hospital  @relation(fields: [hospitalId], references: [id])
-  role        Role      @relation(fields: [roleId], references: [id])
+  hospital    Hospital  @relation("HospitalToUser", fields: [hospitalId], references: [id])
+  role        Role      @relation("RoleToUser", fields: [roleId], references: [id])
 
-  messages    Message[]
-  messageViewedUsers MessageViewedUser[]
-  roomUsers   RoomUser[]
+  messages               Message[]            @relation("UserToMessage")
+  messageViewedUsers     MessageViewedUser[]  @relation("UserToMessageViewedUser")
+  roomUsers              RoomUser[]           @relation("UserToRoomUser")
+  adminRooms             Room[]               @relation("RoomAdmin")
+
+  schedulesCreated       Scheduling[]         @relation("SchedulingCreatedBy")
+  schedulesProvided      Scheduling[]         @relation("SchedulingProvider")
+
+  examsCreated           Exam[]               @relation("ExamCreatedBy")
+  examsProvided          Exam[]               @relation("ExamProvider")
   
   @@map("USER")
 }
@@ -92,10 +103,11 @@ model Message {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   
-  sender     User      @relation(fields: [senderId], references: [id])
-  room       Room      @relation(fields: [roomId], references: [id])
+  sender     User      @relation("UserToMessage", fields: [senderId], references: [id])
+  room       Room      @relation("RoomToMessage", fields: [roomId], references: [id])
 
-  messageViewedUsers MessageViewedUser[]
+  messageViewedUsers MessageViewedUser[] @relation("MessageToMessageViewedUser")
+  archives           Archive[]           @relation("MessageToArchive")
   
   @@map("MESSAGE")
 }
@@ -105,8 +117,8 @@ model MessageViewedUser {
   messageId  String
   userId     String
   
-  message    Message   @relation(fields: [messageId], references: [id])
-  user       User      @relation(fields: [userId], references: [id])
+  message    Message   @relation("MessageToMessageViewedUser", fields: [messageId], references: [id])
+  user       User      @relation("UserToMessageViewedUser", fields: [userId], references: [id])
   
   @@unique([messageId, userId])
   
@@ -122,6 +134,69 @@ model Patient {
   address    String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+
+  schedulings Scheduling[] @relation("PatientToScheduling")
+  exams       Exam[]       @relation("PatientToExam")
   
   @@map("PATIENT")
+}
+
+model Scheduling {
+  id            String   @id @default(uuid())
+  hospitalId    String
+  createdById   String   // quem criou o agendamento (paciente, recepção etc.)
+  providerId    String   // médico / profissional que atenderá
+  patientId     String
+  observation   String?
+  startDate     DateTime
+  endDate       DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  hospital  Hospital @relation("HospitalToScheduling", fields: [hospitalId], references: [id])
+  createdBy User     @relation("SchedulingCreatedBy", fields: [createdById], references: [id])
+  provider  User     @relation("SchedulingProvider",  fields: [providerId], references: [id])
+  patient   Patient  @relation("PatientToScheduling", fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@index([createdById])
+  @@index([providerId])
+  @@index([hospitalId])
+
+  @@map("SCHEDULING")
+}
+
+model Archive {
+  id          String    @id @default(uuid())
+  url         String
+  name        String
+  type        String      
+  createdAt   DateTime  @default(now())
+
+  messageId   String?
+  exam        Exam?     @relation("ExamToArchive")
+
+  message     Message?  @relation("MessageToArchive", fields: [messageId], references: [id])
+
+  @@map("ARCHIVE")
+}
+
+model Exam {
+  id             String    @id @default(uuid())
+  hospitalId     String
+  createdById    String   // quem criou o exame (ex: recepção)
+  providerId     String   // profissional que vai analisar/realizar
+  patientId      String
+  archiveId      String?  @unique
+  description    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  hospital       Hospital  @relation("HospitalToExam", fields: [hospitalId], references: [id])
+  createdBy      User      @relation("ExamCreatedBy", fields: [createdById], references: [id])
+  provider       User      @relation("ExamProvider", fields: [providerId], references: [id])
+  patient        Patient   @relation("PatientToExam", fields: [patientId], references: [id])
+  archive        Archive?  @relation("ExamToArchive", fields: [archiveId], references: [id])
+
+  @@map("EXAM")
 }
