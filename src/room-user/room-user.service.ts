@@ -55,6 +55,15 @@ export class RoomUserService {
         });
     }
 
+    async findAllUsersInRoomExceptSender(roomId: string, userId: string) {
+        const usersInRoomExceptSender = await this.prisma.roomUser.findMany({
+            where: { roomId },
+            select: { userId: true }
+        });
+
+        return usersInRoomExceptSender;
+    }
+
     async userInRoom(roomId: string, userId: string): Promise<RoomUser> {
         const roomUser = await this.prisma.roomUser.findUnique({
             where: {
