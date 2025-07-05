@@ -21,7 +21,7 @@ export async function seedRooms() {
             createdAt: "2025-04-03T20:06:52.449Z",
             updatedAt: "2025-04-03T20:06:52.449Z"
         }
-    ]
+    ];
 
     await prisma.room.createMany({
         data: rooms,

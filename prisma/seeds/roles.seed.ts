@@ -21,8 +21,7 @@ export async function seedRoles() {
             id: "e27121c3-afe6-44dc-b8cc-5b7207c55de4",
             name: "Recepcionista"
         }
-    ]
-
+    ];
 
     await prisma.role.createMany({
         data: roles,
