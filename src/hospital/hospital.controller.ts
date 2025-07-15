@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Hospital } from '@prisma/client';
 import { CreateHospitalDto } from './__dtos__/create-hospital.dto';
 import { UpdateHospitalDto } from './__dtos__/update-hospital.dto';
@@ -17,8 +17,8 @@ export class HospitalController {
     }
 
     @Get()
-    async findAll(): Promise<Hospital[]> {
-        return this.hospitalService.findAll();
+    async findAll(@Query('companyName') companyName: string): Promise<Hospital[]> {
+        return this.hospitalService.findAll(companyName);
     }
 
     @Get(':id')

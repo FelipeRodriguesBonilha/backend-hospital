@@ -18,8 +18,15 @@ export class HospitalService {
         return createdHospital;
     }
 
-    async findAll(): Promise<Hospital[]> {
-        const hospital = await this.prisma.hospital.findMany();
+    async findAll(companyName: string): Promise<Hospital[]> {
+        const hospital = await this.prisma.hospital.findMany({
+            where: {
+                companyName: {
+                    contains: companyName,
+                    mode: 'insensitive',
+                },
+            }
+        });
 
         return hospital;
     }

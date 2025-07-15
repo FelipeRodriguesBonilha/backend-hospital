@@ -1,8 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateSchedulingDto } from './__dtos__/create-scheduling.dto';
 import { UpdateSchedulingDto } from './__dtos__/update-scheduling.dto';
 import { PrismaService } from 'src/prisma.service';
 import { Scheduling } from '@prisma/client';
+import { Role } from 'src/user/enum/role.enum';
 
 @Injectable()
 export class SchedulingService {
@@ -20,8 +21,8 @@ export class SchedulingService {
 
     const [hospital, createdBy, provider, patient] = await Promise.all([
       this.prisma.hospital.findUnique({ where: { id: createSchedulingDto.hospitalId } }),
-      this.prisma.user.findUnique({ where: { id: createSchedulingDto.createdById } }),
-      this.prisma.user.findUnique({ where: { id: createSchedulingDto.providerId } }),
+      this.prisma.user.findUnique({ where: { id: createSchedulingDto.createdById }, include: { role: true } }),
+      this.prisma.user.findUnique({ where: { id: createSchedulingDto.providerId }, include: { role: true } }),
       this.prisma.patient.findUnique({ where: { id: createSchedulingDto.patientId } }),
     ]);
 
@@ -29,6 +30,14 @@ export class SchedulingService {
     if (!createdBy) throw new NotFoundException('Usuário (createdBy) não encontrado');
     if (!provider) throw new NotFoundException('Profissional (provider) não encontrado');
     if (!patient) throw new NotFoundException('Paciente não encontrado');
+
+    if(createdBy.role.name !== Role.Recepcionista) {
+      throw new ForbiddenException('Apenas recepcionistas podem criar agendamentos');
+    }
+
+    if(provider.role.name !== Role.Medico) {
+      throw new ForbiddenException('Apenas médicos podem atender agendamentos');
+    }
 
     if (
       createdBy.hospitalId !== createSchedulingDto.hospitalId ||
@@ -44,22 +53,61 @@ export class SchedulingService {
         AND: [{ startDate: { lt: end } }, { endDate: { gt: start } }],
       },
     });
-    
+
     if (overlap) {
       throw new ConflictException(
         'Profissional já possui agendamento nesse período',
       );
     }
 
-    return this.prisma.scheduling.create({ data: createSchedulingDto });
+    return this.prisma.scheduling.create({
+      data: createSchedulingDto,
+      include: {
+        hospital: true,
+        createdBy: true,
+        provider: true,
+        patient: true,
+      }
+    });
   }
 
   async findAll(): Promise<Scheduling[]> {
-    return await this.prisma.scheduling.findMany({ orderBy: { startDate: 'asc' } });
+    return await this.prisma.scheduling.findMany({
+      orderBy: { startDate: 'asc' },
+      include: {
+        hospital: true,
+        createdBy: true,
+        provider: true,
+        patient: true,
+      }
+    });
+  }
+
+  async findByHospital(hospitalId: string){
+    return await this.prisma.scheduling.findMany({
+      where: {
+        hospitalId,
+      },
+      orderBy: { startDate: 'asc' },
+      include: {
+        hospital: true,
+        createdBy: true,
+        provider: true,
+        patient: true,
+      }
+    });
   }
 
   async findById(id: string): Promise<Scheduling> {
-    const scheduling = await this.prisma.scheduling.findUnique({ where: { id } });
+    const scheduling = await this.prisma.scheduling.findUnique({
+      where: { id },
+      include: {
+        hospital: true,
+        createdBy: true,
+        provider: true,
+        patient: true,
+      }
+    });
 
     if (!scheduling) throw new NotFoundException('Agendamento não encontrado');
     return scheduling;
@@ -91,7 +139,16 @@ export class SchedulingService {
       );
     }
 
-    return this.prisma.scheduling.update({ where: { id }, data });
+    return this.prisma.scheduling.update({
+      where: { id },
+      data,
+      include: {
+        hospital: true,
+        createdBy: true,
+        provider: true,
+        patient: true,
+      }
+    });
   }
 
   async remove(id: string): Promise<void> {

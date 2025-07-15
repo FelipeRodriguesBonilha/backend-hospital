@@ -82,7 +82,7 @@ export class ChatGateway {
 
   @SubscribeMessage('connect-room')
   async connectRoom(
-    @MessageBody() connectRoomDto: ConnectRoomDto, 
+    @MessageBody() connectRoomDto: ConnectRoomDto,
     @ConnectedSocket() client: Socket
   ) {
     try {
@@ -133,7 +133,7 @@ export class ChatGateway {
 
   @SubscribeMessage('disconnect-room')
   async disconnectRoom(
-    @MessageBody() connectRoomDto: ConnectRoomDto, 
+    @MessageBody() connectRoomDto: ConnectRoomDto,
     @ConnectedSocket() client: Socket
   ) {
     try {
@@ -163,7 +163,7 @@ export class ChatGateway {
 
   @SubscribeMessage('join-room')
   async joinRoom(
-    @MessageBody() joinRoomDto: JoinRoomDto, 
+    @MessageBody() joinRoomDto: JoinRoomDto,
     @ConnectedSocket() client: Socket
   ) {
     try {
@@ -193,7 +193,7 @@ export class ChatGateway {
 
   @SubscribeMessage('leave-room')
   async leaveRoom(
-    @MessageBody() leaveRoomDto: LeaveRoomDto, 
+    @MessageBody() leaveRoomDto: LeaveRoomDto,
     @ConnectedSocket() client: Socket
   ) {
     try {
@@ -223,7 +223,7 @@ export class ChatGateway {
 
   @SubscribeMessage('send-message')
   async sendMessage(
-    @MessageBody() createMessageDto: CreateMessageDto, 
+    @MessageBody() createMessageDto: CreateMessageDto,
     @ConnectedSocket() client: Socket
   ) {
     try {

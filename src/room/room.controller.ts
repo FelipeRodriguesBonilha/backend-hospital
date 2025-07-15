@@ -1,15 +1,14 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { ApiSecurity } from '@nestjs/swagger';
 import { Room } from '@prisma/client';
+import { Roles } from 'src/decorators/roles.decorator';
+import { UserId } from 'src/decorators/userId.decorator';
+import { JoinRoomDto } from 'src/room-user/__dtos__/join-room.dto';
+import { LeaveRoomDto } from 'src/room-user/__dtos__/leave-room.dto';
+import { Role } from 'src/user/enum/role.enum';
 import { CreateRoomDto } from './__dtos__/create-room.dto';
 import { UpdateRoomDto } from './__dtos__/update-room.dto';
 import { RoomService } from './room.service';
-import { JoinRoomDto } from 'src/room-user/__dtos__/join-room.dto';
-import { LeaveRoomDto } from 'src/room-user/__dtos__/leave-room.dto';
-import { Roles } from 'src/decorators/roles.decorator';
-import { Role } from 'src/user/enum/role.enum';
-import { ApiSecurity } from '@nestjs/swagger';
-import { UserId } from 'src/decorators/userId.decorator';
-import { UserService } from 'src/user/user.service';
 
 @ApiSecurity('JWT-auth')
 @Roles(Role.AdministradorHospital, Role.Medico, Role.Recepcionista)

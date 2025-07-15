@@ -16,6 +16,7 @@ import { RoomModule } from './room/room.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { UserModule } from './user/user.module';
 import { PatientModule } from './patient/patient.module';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { PatientModule } from './patient/patient.module';
     UserModule,
     AuthModule,
     HospitalModule,
-    JwtModule, SchedulingModule, ExamModule, ArchiveModule, PatientModule,
+    JwtModule, SchedulingModule, ExamModule, ArchiveModule, PatientModule, RoleModule,
   ],
   controllers: [
     AppController

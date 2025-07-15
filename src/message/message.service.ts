@@ -19,10 +19,6 @@ export class MessageService {
     async create(createMessageDto: CreateMessageDto, userId: string): Promise<Message> {
         const user = await this.userService.findById(userId);
 
-        console.log('createMessageDto', createMessageDto);
-
-        console.log('user no create', user);
-
         if (!user) {
             throw new NotFoundException('Usuário não encontrado!');
         }

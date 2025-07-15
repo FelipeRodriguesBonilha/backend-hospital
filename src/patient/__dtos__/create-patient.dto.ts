@@ -6,6 +6,10 @@ export class CreatePatientDto {
     @IsString()
     name: string;
 
+    @ApiProperty({ description: 'ID do hospital responsável', example: 'uuid-do-hospital' })
+    @IsString()
+    hospitalId: string;
+
     @ApiProperty({ description: 'CPF do paciente (somente números)', example: '12345678901' })
     @IsString()
     @Length(11, 11)

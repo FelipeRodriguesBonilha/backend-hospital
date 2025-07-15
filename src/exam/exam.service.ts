@@ -14,9 +14,33 @@ export class ExamService {
     });
   }
 
-
-  async findAll(): Promise<Exam[]> {
+  async findAll(description?: string): Promise<Exam[]> {
     return this.prisma.exam.findMany({
+      where: {
+        description: {
+          contains: description,
+          mode: 'insensitive',
+        },
+      },
+      include: {
+        patient: true,
+        provider: true,
+        createdBy: true,
+        hospital: true,
+        archive: true,
+      },
+    });
+  }
+
+  async findByHospital(hospitalId: string, description?: string): Promise<Exam[]> {
+    return this.prisma.exam.findMany({
+      where: {
+        hospitalId,
+        description: {
+          contains: description,
+          mode: 'insensitive',
+        },
+      },
       include: {
         patient: true,
         provider: true,

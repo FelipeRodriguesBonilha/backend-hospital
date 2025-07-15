@@ -32,12 +32,12 @@ export class RolesGuard implements CanActivate {
             return false;
         }
 
-        const userRoles = await this.userService.getRolesByUserId(loginPayload.id);
+        const userRole = await this.userService.getRoleByUserId(loginPayload.id);
 
-        if (!userRoles || userRoles.length === 0) {
+        if (!userRole) {
             return false;
         }
 
-        return userRoles.some((role) => requiredRoles.includes((role) as Role));
+        return requiredRoles.some((role) => role === userRole);
     }
 }

@@ -18,10 +18,22 @@ export class PatientService {
     return createdPatient;
   }
 
-  async findAll(): Promise<Patient[]> {
-    const patient = await this.prisma.patient.findMany();
+  async findAll(name?: string): Promise<Patient[]> {
+    const patients = await this.prisma.patient.findMany();
 
-    return patient;
+    return patients;
+  }
+
+  async findByHospital(hospitalId: string, name?: string): Promise<Patient[]> {
+    return this.prisma.patient.findMany({
+      where: {
+        hospitalId,
+        name: {
+          contains: name,
+          mode: 'insensitive',
+        },
+      },
+    })
   }
 
   async findById(id: string): Promise<Patient> {

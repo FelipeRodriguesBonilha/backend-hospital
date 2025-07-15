@@ -8,10 +8,13 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Archive } from '@prisma/client';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/user/enum/role.enum';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateArchiveDto } from './__dtos__/create-archive.dto';
 import { ArchiveService } from './archive.service';
 
+@Roles(Role.AdministradorHospital, Role.Medico, Role.Recepcionista)
 @Controller('archives')
 export class ArchiveController {
   constructor(private readonly archiveService: ArchiveService) { }

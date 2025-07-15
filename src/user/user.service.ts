@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
 import { CreateUserDto } from './__dtos__/create-user.dto';
@@ -32,8 +32,14 @@ export class UserService {
         return createdUser;
     }
 
-    async findAll(): Promise<User[]> {
+    async findAll(name: string): Promise<User[]> {
         const users = await this.prisma.user.findMany({
+            where: {
+                name: {
+                    contains: name,
+                    mode: 'insensitive',
+                },
+            },
             include: {
                 hospital: true,
                 role: true
@@ -41,6 +47,22 @@ export class UserService {
         });
 
         return users;
+    }
+
+    async findByHospital(hospitalId: string, name: string): Promise<User[]> {
+        return this.prisma.user.findMany({
+            where: { 
+                hospitalId,
+                name: {
+                    contains: name,
+                    mode: 'insensitive',
+                },
+            },
+            include: {
+                hospital: true,
+                role: true,
+            },
+        });
     }
 
     async findById(id: string): Promise<User> {
@@ -56,7 +78,7 @@ export class UserService {
     }
 
     async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-        const updatedRoom = await this.prisma.user.update({
+        const updatedUser = await this.prisma.user.update({
             where: { id },
             data: updateUserDto,
             include: {
@@ -65,7 +87,20 @@ export class UserService {
             }
         });
 
-        return updatedRoom;
+        return updatedUser;
+    }
+
+    async updateProfile(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+        const updatedUser = await this.prisma.user.update({
+            where: { id },
+            data: updateUserDto,
+            include: {
+                hospital: true,
+                role: true
+            }
+        });
+
+        return updatedUser;
     }
 
     async remove(id: string): Promise<User> {
@@ -83,10 +118,14 @@ export class UserService {
     async findByEmail(email: string): Promise<User | null> {
         return this.prisma.user.findUnique({
             where: { email },
+            include: {
+                hospital: true,
+                role: true
+            }
         });
     }
 
-    async getRolesByUserId(userId: string): Promise<string[]> {
+    async getRoleByUserId(userId: string): Promise<string> {
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
             include: {
@@ -95,10 +134,6 @@ export class UserService {
             }
         });
 
-        if (!user || !user.role) {
-            return [];
-        }
-
-        return [user.role.name];
+        return user.role.name;
     }
 }

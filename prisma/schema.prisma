@@ -29,6 +29,7 @@ model Hospital {
   
   users       User[]       @relation("HospitalToUser")
   rooms       Room[]       @relation("HospitalToRoom")
+  patients    Patient[]  @relation("HospitalToPatient")
   schedulings Scheduling[] @relation("HospitalToScheduling")
   exams       Exam[]       @relation("HospitalToExam")
   
@@ -127,6 +128,7 @@ model MessageViewedUser {
 
 model Patient {
   id         String    @id @default(uuid())
+  hospitalId  String
   name       String
   cpf        String    @unique
   phone      String
@@ -135,6 +137,7 @@ model Patient {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  hospital    Hospital  @relation("HospitalToPatient", fields: [hospitalId], references: [id])
   schedulings Scheduling[] @relation("PatientToScheduling")
   exams       Exam[]       @relation("PatientToExam")
   

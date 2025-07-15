@@ -1,6 +1,6 @@
 import { Hospital, Role, User } from "@prisma/client";
 import { ReturnHospitalDto } from "src/hospital/__dtos__/return-hospital.dto";
-import { ReturnRoleDto } from "./return-role.dto";
+import { ReturnRoleDto } from "src/role/__dtos__/return-role";
 
 export class ReturnUserDto {
     id: string;
