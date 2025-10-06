@@ -7,7 +7,7 @@ export async function seedHospitals() {
     const hospitals = [
         {
             id: "8461fdb7-c0e4-45ce-ab14-975d1e923d91",
-            companyName: "Hospital do Felipe",
+            companyName: "Santa Casa de Assis",
             cnpj: "11111111111111",
             phone: "18996953230",
         }

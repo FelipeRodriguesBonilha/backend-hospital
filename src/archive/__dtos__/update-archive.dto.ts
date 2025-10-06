@@ -1,4 +1,6 @@
-import { PartialType } from "@nestjs/swagger";
-import { CreateArchiveDto } from "./create-archive.dto";
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export class UpdateArchiveDto extends PartialType(CreateArchiveDto) {}
+export class UpdateArchiveDto {
+    @ApiPropertyOptional({ description: 'ID da mensagem associada', example: '123e4567-e89b-12d3-a456-426614174000' })
+    messageId?: string;
+}

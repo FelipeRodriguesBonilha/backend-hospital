@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { RoomController } from './room.controller';
 import { RoomService } from './room.service';
@@ -9,6 +9,6 @@ import { UserModule } from 'src/user/user.module';
   controllers: [RoomController],
   providers: [RoomService, PrismaService],
   exports: [RoomService],
-  imports: [RoomUserModule, UserModule]
+  imports: [RoomUserModule, forwardRef(() => UserModule)]
 })
 export class RoomModule {}

@@ -1,149 +1,234 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Message } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
+import { CreateArchiveDto } from 'src/archive/__dtos__/create-archive.dto';
+import { ArchiveService } from 'src/archive/archive.service';
 import { PrismaService } from 'src/prisma.service';
+import { Role } from 'src/role/enum/role.enum';
+import { UserService } from 'src/user/user.service';
+import { generateStoredFilename, UPLOAD_FILES_DIR } from 'src/utils/file-naming.util';
+import { ALLOWED_FILE_MIME_TYPES, AllowedFileMimeType } from 'src/utils/file-types.constants';
 import { CreateMessageDto } from './__dtos__/create-message.dto';
 import { UpdateMessageDto } from './__dtos__/update-message.dto';
-import { UserService } from 'src/user/user.service';
-import { RoomService } from 'src/room/room.service';
-import { RoomUserService } from 'src/room-user/room-user.service';
+
+export interface IncomingFile {
+    originalname: string;
+    mimetype: string;
+    buffer: Buffer;
+}
 
 @Injectable()
 export class MessageService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly userService: UserService,
-        private readonly roomService: RoomService,
-        private readonly roomUserService: RoomUserService
+
+        @Inject(forwardRef(() => ArchiveService))
+        private readonly archiveService: ArchiveService
     ) { }
 
-    async create(createMessageDto: CreateMessageDto, userId: string): Promise<Message> {
-        const user = await this.userService.findById(userId);
+    async create(createMessageDto: CreateMessageDto, userId: string) {
+        const [requesterUser, room, isMember] = await Promise.all([
+            this.userService.findByIdWithoutAccessControl(userId),
+            this.prisma.room.findUnique({ where: { id: createMessageDto.roomId }, include: { hospital: true } }),
+            this.userService.userAlreadyInRoom(createMessageDto.roomId, userId),
+        ]);
 
-        if (!user) {
-            throw new NotFoundException('Usuário não encontrado!');
+        if (!room) throw new NotFoundException('Sala não encontrada!');
+
+        const userRole = requesterUser.role.name as Role;
+        if (userRole === Role.AdministradorGeral) {
+            throw new ForbiddenException('Administrador geral não possui permissões de sala.');
         }
+        if ([Role.AdministradorHospital, Role.Recepcionista, Role.Medico].includes(userRole) && requesterUser.hospitalId !== room.hospitalId) {
+            throw new ForbiddenException('Você só pode enviar mensagens para salas do seu hospital!');
+        }
+
+        if (!isMember) throw new ForbiddenException('Usuário não pertence à sala.');
+
+        const { files, ...messageData } = createMessageDto;
+
+        if (files?.length) this.validateFileTypes(files);
 
         const createdMessage = await this.prisma.message.create({
             data: {
-                ...createMessageDto,
-                senderId: userId
+                ...messageData,
+                senderId: requesterUser.id,
             },
             include: {
                 sender: true,
-                room: true
-            }
-        });
-
-        return createdMessage;
-    }
-
-    async findAll(): Promise<Message[]> {
-        const messages = await this.prisma.message.findMany({
-            include: {
-                sender: true,
-                room: true
-            }
-        });
-
-        return messages;
-    }
-
-    async findById(id: string, userId: string): Promise<Message> {
-        const user = await this.userService.findById(userId);
-
-        if (!user) {
-            throw new NotFoundException('Usuário não encontrado!');
-        }
-
-        const message = await this.prisma.message.findFirst({
-            where: {
-                id,
-                senderId: userId,
+                room: true,
+                archives: true,
             },
-            include: {
-                sender: true,
-                room: true
-            }
         });
 
-        if (!message) {
-            throw new ForbiddenException('A mensagem não pertence ao usuário');
+        if (files?.length) await this.handleFileArchives(createdMessage.id, createMessageDto, userId);
+
+        return this.findById(createdMessage.id, userId);
+    }
+
+    async findAll() {
+        return await this.prisma.message.findMany({
+            include: {
+                sender: true,
+                room: true,
+                archives: true,
+            }
+        });
+    }
+
+    async findById(id: string, userId: string) {
+        const [requesterUser, message] = await Promise.all([
+            this.userService.findByIdWithoutAccessControl(userId),
+            this.prisma.message.findFirst({
+                where: {
+                    id,
+                },
+                include: {
+                    sender: true,
+                    room: { include: { hospital: true } },
+                    archives: true,
+                },
+            })
+        ]);
+
+        if (!message) throw new NotFoundException('Mensagem não encontrada!');
+
+        const userRole = requesterUser.role.name as Role;
+        if (userRole === Role.AdministradorGeral) {
+            throw new ForbiddenException('Administrador geral não possui permissões de sala.');
         }
+        if ([Role.AdministradorHospital, Role.Recepcionista, Role.Medico].includes(userRole) && requesterUser.hospitalId !== message.room.hospitalId) {
+            throw new ForbiddenException('Você só pode acessar mensagens do seu hospital!');
+        }
+
+        const isMember = await this.userService.userAlreadyInRoom(message.roomId, userId);
+        if (!isMember) throw new ForbiddenException('Usuário não pertence à sala.');
 
         return message;
     }
 
-    async update(id: string, updateMessageDto: UpdateMessageDto, userId: string): Promise<Message> {
-        const message = await this.findById(id, userId);
+    async update(id: string, updateMessageDto: UpdateMessageDto, userId: string) {
+        const [requesterUser, message] = await Promise.all([
+            this.userService.findByIdWithoutAccessControl(userId),
+            this.findById(id, userId)
+        ]);
 
-        if (!message) {
-            throw new NotFoundException('Mensagem não encontrada!')
+        const userRole = requesterUser.role.name as Role;
+        if (userRole === Role.AdministradorGeral) {
+            throw new ForbiddenException('Administrador geral não possui permissões de sala.');
+        }
+        if ([Role.AdministradorHospital, Role.Recepcionista, Role.Medico].includes(userRole) && requesterUser.hospitalId !== message.room.hospitalId) {
+            throw new ForbiddenException('Você só pode editar mensagens do seu hospital!');
         }
 
-        if (message.senderId !== userId) {
-            throw new ForbiddenException('A mensagem não pertence ao usuário');
-        }
+        if (message.senderId !== userId) throw new ForbiddenException('A mensagem não pertence ao usuário');
 
-        const updatedMessage = await this.prisma.message.update({
+        const isMember = await this.userService.userAlreadyInRoom(message.roomId, userId);
+        if (!isMember) throw new ForbiddenException('Usuário não pertence à sala.');
+
+        return await this.prisma.message.update({
             where: { id },
-            data: updateMessageDto,
+            data: { content: updateMessageDto.content },
             include: {
                 sender: true,
-                room: true
+                room: true,
+                archives: true,
             }
         });
-
-        return updatedMessage;
     }
 
-    async remove(id: string, userId: string): Promise<Message> {
-        const message = await this.findById(id, userId);
+    async remove(id: string, userId: string) {
+        const [requesterUser, message] = await Promise.all([
+            this.userService.findByIdWithoutAccessControl(userId),
+            this.findById(id, userId),
+        ]);
 
-        if (!message) {
-            throw new NotFoundException('Mensagem não encontrada!')
+        const userRole = requesterUser.role.name as Role;
+        if (userRole === Role.AdministradorGeral) {
+            throw new ForbiddenException('Administrador geral não possui permissões de sala.');
+        }
+        if ([Role.AdministradorHospital, Role.Recepcionista, Role.Medico].includes(userRole) && requesterUser.hospitalId !== message.room.hospitalId) {
+            throw new ForbiddenException('Você só pode remover mensagens do seu hospital!');
         }
 
-        if (message.senderId !== userId) {
-            throw new ForbiddenException('A mensagem não pertence ao usuário');
-        }
+        if (message.senderId !== userId) throw new ForbiddenException('A mensagem não pertence ao usuário');
 
-        const deletedMessage = await this.prisma.message.delete({
+        const isMember = await this.userService.userAlreadyInRoom(message.roomId, userId);
+        if (!isMember) throw new ForbiddenException('Usuário não pertence à sala.');
+
+        return await this.prisma.message.delete({
             where: { id },
             include: {
                 sender: true,
-                room: true
-            }
+                room: true,
+                archives: true,
+            },
         });
-
-        return deletedMessage;
     }
 
     async findAllMessagesByRoom(roomId: string, userId: string) {
-        const user = await this.userService.findById(userId);
+        const [requesterUser, room, userInRoom] = await Promise.all([
+            this.userService.findByIdWithoutAccessControl(userId),
+            this.prisma.room.findUnique({ where: { id: roomId }, include: { hospital: true } }),
+            this.userService.userAlreadyInRoom(roomId, userId),
+        ]);
 
-        if (!user) {
-            throw new NotFoundException('Usuário não encontrado!');
+        if (!room) throw new NotFoundException('Sala não encontrada!');
+
+        const userRole = requesterUser.role.name as Role;
+        if (userRole === Role.AdministradorGeral) {
+            throw new ForbiddenException('Administrador geral não possui permissões de sala.');
+        }
+        if ([Role.AdministradorHospital, Role.Recepcionista, Role.Medico].includes(userRole) && requesterUser.hospitalId !== room.hospitalId) {
+            throw new ForbiddenException('Você só pode acessar mensagens do seu hospital!');
         }
 
-        const userInRoom = await this.roomService.userInRoom(roomId, userId);
+        if (!userInRoom) throw new ForbiddenException('Usuário não pertence à sala.');
 
-        if (!userInRoom) {
-            throw new ForbiddenException('Usuário não pertence à sala.');
-        }
-
-        const allMessagesByRoom = await this.prisma.message.findMany({
+        return await this.prisma.message.findMany({
             where: { roomId },
             orderBy: { createdAt: 'asc' },
             include: {
                 sender: true,
-                room: true
+                room: true,
+                archives: true,
             }
         });
-
-        return allMessagesByRoom;
     }
 
-    async markAllMessagesNotReadAsRead(roomId: string, userId: string): Promise<Message[]> {
+    async findAllMessagesByRoomWithoutAccessControl(roomId: string) {
+        return await this.prisma.message.findMany({
+            where: { roomId },
+            orderBy: { createdAt: 'asc' },
+            include: {
+                sender: true,
+                room: true,
+                archives: true,
+            }
+        });
+    }
+
+    async markAllMessagesNotReadAsRead(roomId: string, userId: string) {
+        const [requesterUser, room, userInRoom] = await Promise.all([
+            this.userService.findByIdWithoutAccessControl(userId),
+            this.prisma.room.findUnique({ where: { id: roomId }, include: { hospital: true } }),
+            this.userService.userAlreadyInRoom(roomId, userId),
+        ]);
+
+        if (!room) throw new NotFoundException('Sala não encontrada!');
+
+        const userRole = requesterUser.role.name as Role;
+        if (userRole === Role.AdministradorGeral) {
+            throw new ForbiddenException('Administrador geral não possui permissões de sala.');
+        }
+        if ([Role.AdministradorHospital, Role.Recepcionista, Role.Medico].includes(userRole) && requesterUser.hospitalId !== room.hospitalId) {
+            throw new ForbiddenException('Você só pode atualizar mensagens do seu hospital!');
+        }
+
+        if (!userInRoom) throw new ForbiddenException('Usuário não pertence à sala.');
+
         const unreadMessages = await this.prisma.message.findMany({
             where: {
                 roomId,
@@ -154,9 +239,7 @@ export class MessageService {
             },
         });
 
-        if (unreadMessages.length === 0) {
-            throw new BadRequestException('Todas as mensagens já foram visualizadas pelo usuário!')
-        }
+        if (unreadMessages.length === 0) return
 
         const createData = unreadMessages.map((message: Message) => ({
             messageId: message.id,
@@ -171,29 +254,37 @@ export class MessageService {
         return unreadMessages;
     }
 
+    async isMessageSeenByAllUsers(messageId: string, roomId: string, userId: string) {
+        const [requesterUser, room] = await Promise.all([
+            this.userService.findByIdWithoutAccessControl(userId),
+            this.prisma.room.findUnique({ where: { id: roomId }, include: { hospital: true } })
+        ]);
 
-    async isMessageSeenByAllUsers(messageId: string, roomId: string): Promise<boolean> {
+        if (!room) throw new NotFoundException('Sala não encontrada!');
+
+        const userRole = requesterUser.role.name as Role;
+        if (userRole === Role.AdministradorGeral) {
+            throw new ForbiddenException('Administrador geral não possui permissões de sala.');
+        }
+        if ([Role.AdministradorHospital, Role.Recepcionista, Role.Medico].includes(userRole) && requesterUser.hospitalId !== room.hospitalId) {
+            throw new ForbiddenException('Você só pode acessar mensagens do seu hospital!');
+        }
+
+        const isMember = await this.userService.userAlreadyInRoom(roomId, userId);
+        if (!isMember) throw new ForbiddenException('Usuário não pertence à sala.');
+
         const usersInRoom = await this.prisma.roomUser.findMany({
             where: { roomId },
             select: { userId: true }
         });
 
-        const message = await this.prisma.message.findUnique({
-            where: { id: messageId },
-            select: { senderId: true }
-        });
-
-        if (!message) {
-            throw new NotFoundException('Mensagem não encontrada!');
-        }
+        const message = await this.findById(messageId, userId);
 
         const otherUsersInRoom = usersInRoom.filter((user) =>
             user.userId !== message.senderId
         );
 
-        if (otherUsersInRoom.length === 0) {
-            return true;
-        }
+        if (otherUsersInRoom.length === 0) return true;
 
         const viewedCount = await this.prisma.messageViewedUser.count({
             where: {
@@ -205,5 +296,41 @@ export class MessageService {
         });
 
         return viewedCount === otherUsersInRoom.length;
+    }
+
+    private async handleFileArchives(createdMessageId: string, createMessageDto: CreateMessageDto, userId: string) {
+        await fs.promises.mkdir(UPLOAD_FILES_DIR, { recursive: true });
+
+        const multerFiles = await Promise.all(
+            createMessageDto.files.map(async (file) => {
+                const buffer = Buffer.from(file.content, 'base64');
+                const filename = generateStoredFilename(file.name);
+                const fullPath = path.join(UPLOAD_FILES_DIR, filename);
+
+                await fs.promises.writeFile(fullPath, buffer);
+
+                return {
+                    filename,
+                    originalname: file.name,
+                    mimetype: file.type,
+                    buffer,
+                    path: `uploads/${filename}`,
+                } as Express.Multer.File;
+            })
+        );
+
+        await this.archiveService.create({
+            messageId: createdMessageId,
+        } as CreateArchiveDto, multerFiles, userId);
+    }
+
+    private validateFileTypes(files: Array<{ type: string; name: string }>) {
+        for (const file of files) {
+            if (!ALLOWED_FILE_MIME_TYPES.includes(file.type as AllowedFileMimeType)) {
+                throw new BadRequestException(
+                    `Tipo de arquivo não permitido: ${file.type}. Apenas imagens (JPEG, PNG, GIF, WEBP, BMP, SVG) e PDFs são aceitos.`
+                );
+            }
+        }
     }
 }

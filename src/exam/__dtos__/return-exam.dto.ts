@@ -35,6 +35,7 @@ export class ReturnExamDto {
         this.providerId = exam.providerId;
         this.patientId = exam.patientId;
         this.archiveId = exam.archiveId;
+        this.description = exam.description;
 
         this.hospital = exam.hospital ? new ReturnHospitalDto(exam.hospital) : undefined;
         this.createdBy = exam.createdBy ? new ReturnUserDto(exam.createdBy) : undefined;

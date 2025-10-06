@@ -2,7 +2,7 @@ import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { Role } from 'src/user/enum/role.enum';
+import { Role } from 'src/role/enum/role.enum';
 import { LoginPayloadDto } from 'src/auth/__dtos__/login-payload.dto';
 import { UserService } from 'src/user/user.service';
 
@@ -29,6 +29,11 @@ export class RolesGuard implements CanActivate {
         const loginPayload: LoginPayloadDto | undefined = await this.jwtService.verifyAsync(authorization, { secret: process.env.JWT_SECRET }).catch(() => undefined);
 
         if (!loginPayload) {
+            return false;
+        }
+
+        if (loginPayload.tokenType && loginPayload.tokenType !== 'access') {
+            console.log('entrou 2')
             return false;
         }
 

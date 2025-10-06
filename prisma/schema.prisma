@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,8 +8,11 @@ datasource db {
 }
 
 model Role {
-  id    String @id @default(uuid())
-  name  String @unique
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   users User[] @relation("RoleToUser")
 
   @@map("ROLE")
@@ -26,10 +23,12 @@ model Hospital {
   companyName String
   cnpj        String    @unique
   phone       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   
   users       User[]       @relation("HospitalToUser")
   rooms       Room[]       @relation("HospitalToRoom")
-  patients    Patient[]  @relation("HospitalToPatient")
+  patients    Patient[]    @relation("HospitalToPatient")
   schedulings Scheduling[] @relation("HospitalToScheduling")
   exams       Exam[]       @relation("HospitalToExam")
   
@@ -37,75 +36,77 @@ model Hospital {
 }
 
 model Room {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   hospitalId  String
   adminId     String?
   name        String
   description String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
-  hospital    Hospital  @relation("HospitalToRoom", fields: [hospitalId], references: [id])
-  admin       User?     @relation("RoomAdmin", fields: [adminId], references: [id])
+  hospital Hospital @relation("HospitalToRoom", fields: [hospitalId], references: [id], onDelete: Cascade)
+  admin    User?    @relation("RoomAdmin", fields: [adminId], references: [id], onDelete: SetNull)
 
-  messages    Message[]  @relation("RoomToMessage")
-  roomUsers   RoomUser[] @relation("RoomToRoomUser")
+  messages  Message[]  @relation("RoomToMessage")
+  roomUsers RoomUser[] @relation("RoomToRoomUser")
   
   @@map("ROOM")
 }
 
 model RoomUser {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   roomId    String
   userId    String
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  room      Room      @relation("RoomToRoomUser", fields: [roomId], references: [id])
-  user      User      @relation("UserToRoomUser", fields: [userId], references: [id])
+  room Room @relation("RoomToRoomUser", fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation("UserToRoomUser", fields: [userId], references: [id], onDelete: Cascade)
   
   @@unique([roomId, userId])
   @@map("ROOM_USER")
 }
 
 model User {
-  id          String    @id @default(uuid())
-  hospitalId  String
+  id          String   @id @default(uuid())
+  hospitalId  String?
   roleId      String
   name        String
-  cpf         String    @unique
+  cpf         String   @unique
   phone       String
-  email       String    @unique
+  email       String   @unique
   password    String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  passwordResetTokenVersion Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
-  hospital    Hospital  @relation("HospitalToUser", fields: [hospitalId], references: [id])
-  role        Role      @relation("RoleToUser", fields: [roleId], references: [id])
+  hospital Hospital? @relation("HospitalToUser", fields: [hospitalId], references: [id], onDelete: SetNull)
+  role     Role      @relation("RoleToUser", fields: [roleId], references: [id], onDelete: Restrict)
 
-  messages               Message[]            @relation("UserToMessage")
-  messageViewedUsers     MessageViewedUser[]  @relation("UserToMessageViewedUser")
-  roomUsers              RoomUser[]           @relation("UserToRoomUser")
-  adminRooms             Room[]               @relation("RoomAdmin")
+  messages           Message[]            @relation("UserToMessage")
+  messageViewedUsers MessageViewedUser[]  @relation("UserToMessageViewedUser")
+  roomUsers          RoomUser[]           @relation("UserToRoomUser")
+  adminRooms         Room[]               @relation("RoomAdmin")
 
-  schedulesCreated       Scheduling[]         @relation("SchedulingCreatedBy")
-  schedulesProvided      Scheduling[]         @relation("SchedulingProvider")
+  schedulesCreated  Scheduling[] @relation("SchedulingCreatedBy")
+  schedulesProvided Scheduling[] @relation("SchedulingProvider")
 
-  examsCreated           Exam[]               @relation("ExamCreatedBy")
-  examsProvided          Exam[]               @relation("ExamProvider")
+  examsCreated  Exam[] @relation("ExamCreatedBy")
+  examsProvided Exam[] @relation("ExamProvider")
   
   @@map("USER")
 }
 
 model Message {
-  id         String    @id @default(uuid())
-  content    String
-  senderId   String
-  roomId     String
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  content   String
+  senderId  String?
+  roomId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  sender     User      @relation("UserToMessage", fields: [senderId], references: [id])
-  room       Room      @relation("RoomToMessage", fields: [roomId], references: [id])
+  sender User? @relation("UserToMessage", fields: [senderId], references: [id], onDelete: SetNull)
+  room   Room  @relation("RoomToMessage", fields: [roomId], references: [id], onDelete: Cascade)
 
   messageViewedUsers MessageViewedUser[] @relation("MessageToMessageViewedUser")
   archives           Archive[]           @relation("MessageToArchive")
@@ -114,30 +115,31 @@ model Message {
 }
 
 model MessageViewedUser {
-  id         String    @id @default(uuid())
-  messageId  String
-  userId     String
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  message    Message   @relation("MessageToMessageViewedUser", fields: [messageId], references: [id])
-  user       User      @relation("UserToMessageViewedUser", fields: [userId], references: [id])
+  message Message @relation("MessageToMessageViewedUser", fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserToMessageViewedUser", fields: [userId], references: [id], onDelete: Cascade)
   
   @@unique([messageId, userId])
-  
   @@map("MESSAGE_VIEWED_USER")
 }
 
 model Patient {
-  id         String    @id @default(uuid())
-  hospitalId  String
+  id         String   @id @default(uuid())
+  hospitalId String
   name       String
-  cpf        String    @unique
+  cpf        String   @unique
   phone      String
-  email      String    @unique
+  email      String   @unique
   address    String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  hospital    Hospital  @relation("HospitalToPatient", fields: [hospitalId], references: [id])
+  hospital    Hospital     @relation("HospitalToPatient", fields: [hospitalId], references: [id], onDelete: Cascade)
   schedulings Scheduling[] @relation("PatientToScheduling")
   exams       Exam[]       @relation("PatientToExam")
   
@@ -145,21 +147,21 @@ model Patient {
 }
 
 model Scheduling {
-  id            String   @id @default(uuid())
-  hospitalId    String
-  createdById   String   // quem criou o agendamento (paciente, recepção etc.)
-  providerId    String   // médico / profissional que atenderá
-  patientId     String
-  observation   String?
-  startDate     DateTime
-  endDate       DateTime
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(uuid())
+  hospitalId  String
+  createdById String?
+  providerId  String? 
+  patientId   String
+  observation String?
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  hospital  Hospital @relation("HospitalToScheduling", fields: [hospitalId], references: [id])
-  createdBy User     @relation("SchedulingCreatedBy", fields: [createdById], references: [id])
-  provider  User     @relation("SchedulingProvider",  fields: [providerId], references: [id])
-  patient   Patient  @relation("PatientToScheduling", fields: [patientId], references: [id])
+  hospital  Hospital @relation("HospitalToScheduling", fields: [hospitalId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("SchedulingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  provider  User?    @relation("SchedulingProvider",  fields: [providerId], references: [id], onDelete: SetNull)
+  patient   Patient  @relation("PatientToScheduling", fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
   @@index([createdById])
@@ -170,36 +172,36 @@ model Scheduling {
 }
 
 model Archive {
-  id          String    @id @default(uuid())
-  url         String
-  name        String
-  type        String      
-  createdAt   DateTime  @default(now())
+  id        String   @id @default(uuid())
+  url       String
+  name      String
+  type      String      
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messageId String?
 
-  messageId   String?
-  exam        Exam?     @relation("ExamToArchive")
-
-  message     Message?  @relation("MessageToArchive", fields: [messageId], references: [id])
+  exam    Exam?    @relation("ExamToArchive")
+  message Message? @relation("MessageToArchive", fields: [messageId], references: [id], onDelete: SetNull)
 
   @@map("ARCHIVE")
 }
 
 model Exam {
-  id             String    @id @default(uuid())
-  hospitalId     String
-  createdById    String   // quem criou o exame (ex: recepção)
-  providerId     String   // profissional que vai analisar/realizar
-  patientId      String
-  archiveId      String?  @unique
-  description    String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String   @id @default(uuid())
+  hospitalId  String
+  createdById String?
+  providerId  String?
+  patientId   String
+  archiveId   String?   @unique
+  description String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  hospital       Hospital  @relation("HospitalToExam", fields: [hospitalId], references: [id])
-  createdBy      User      @relation("ExamCreatedBy", fields: [createdById], references: [id])
-  provider       User      @relation("ExamProvider", fields: [providerId], references: [id])
-  patient        Patient   @relation("PatientToExam", fields: [patientId], references: [id])
-  archive        Archive?  @relation("ExamToArchive", fields: [archiveId], references: [id])
+  hospital Hospital @relation("HospitalToExam", fields: [hospitalId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  provider  User?   @relation("ExamProvider", fields: [providerId], references: [id], onDelete: SetNull)
+  patient   Patient @relation("PatientToExam", fields: [patientId], references: [id], onDelete: Cascade)
+  archive   Archive? @relation("ExamToArchive", fields: [archiveId], references: [id], onDelete: SetNull)
 
   @@map("EXAM")
 }

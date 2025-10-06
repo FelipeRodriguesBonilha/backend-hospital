@@ -1,29 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, Length } from 'class-validator';
 
 export class CreateExamDto {
     @ApiProperty({ description: 'ID do hospital responsável', example: 'uuid-do-hospital' })
-    @IsString()
+    @IsString({ message: 'Hospital deve ser uma string.' })
     hospitalId: string;
 
-    @ApiProperty({ description: 'ID do usuário que criou o exame', example: 'uuid-do-usuario' })
-    @IsString()
-    createdById: string;
-
     @ApiProperty({ description: 'ID do profissional responsável', example: 'uuid-do-profissional' })
-    @IsString()
+    @IsString({ message: 'Prestador deve ser uma string.' })
     providerId: string;
 
     @ApiProperty({ description: 'ID do paciente', example: 'uuid-do-paciente' })
-    @IsString()
+    @IsString({ message: 'Paciente deve ser uma string.' })
     patientId: string;
 
-    @ApiPropertyOptional({ description: 'ID do arquivo anexado', example: 'uuid-do-arquivo' })
     @IsOptional()
-    @IsString()
+    @IsString({ message: 'Arquivo deve ser uma string.' })
     archiveId?: string;
 
     @ApiProperty({ description: 'Descrição do exame', example: 'Exame de sangue de rotina' })
-    @IsString()
+    @IsString({ message: 'Descrição deve ser uma string.' })
+    @Length(3, 100, { message: 'Descrição deve ter entre 3 e 100 caracteres.' })
     description: string;
 }

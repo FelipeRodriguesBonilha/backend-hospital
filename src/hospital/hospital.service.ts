@@ -10,49 +10,61 @@ export class HospitalService {
         private readonly prisma: PrismaService
     ) { }
 
-    async create(createHospitalDto: CreateHospitalDto): Promise<Hospital> {
-        const createdHospital = await this.prisma.hospital.create({
+    async create(createHospitalDto: CreateHospitalDto) {
+        return await this.prisma.hospital.create({
             data: createHospitalDto,
         });
-
-        return createdHospital;
     }
 
-    async findAll(companyName: string): Promise<Hospital[]> {
-        const hospital = await this.prisma.hospital.findMany({
-            where: {
-                companyName: {
-                    contains: companyName,
-                    mode: 'insensitive',
+    async findAll(companyName: string, page = 1, limit = 10) {
+        const skip = (page - 1) * limit;
+
+        const [hospitals, total] = await Promise.all([
+            this.prisma.hospital.findMany({
+                where: {
+                    companyName: {
+                        contains: companyName,
+                        mode: 'insensitive',
+                    },
                 },
-            }
-        });
+                skip,
+                take: limit,
+            }),
+            this.prisma.hospital.count({
+                where: {
+                    companyName: {
+                        contains: companyName,
+                        mode: 'insensitive',
+                    },
+                },
+            }),
+        ]);
 
-        return hospital;
+        return {
+            data: hospitals,
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+        };
     }
 
-    async findById(id: string): Promise<Hospital> {
-        const hospital = await this.prisma.hospital.findUnique({
+    async findById(id: string) {
+        return await this.prisma.hospital.findUnique({
             where: { id },
         });
-
-        return hospital;
     }
 
-    async update(id: string, updateHospitalDto: UpdateHospitalDto): Promise<Hospital> {
-        const updatedHospital = await this.prisma.hospital.update({
+    async update(id: string, updateHospitalDto: UpdateHospitalDto) {
+        return await this.prisma.hospital.update({
             where: { id },
             data: updateHospitalDto,
         });
-
-        return updatedHospital;
     }
 
-    async remove(id: string): Promise<Hospital> {
-        const deletedHospital = await this.prisma.hospital.delete({
+    async remove(id: string) {
+        return await this.prisma.hospital.delete({
             where: { id },
         });
-
-        return deletedHospital;
     }
 }

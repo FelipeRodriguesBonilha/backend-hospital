@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator";
+import { Type } from "class-transformer";
 
 export class CreateMessageDto {
     @ApiProperty({
@@ -17,4 +18,25 @@ export class CreateMessageDto {
     @IsString()
     @IsNotEmpty()
     roomId: string;
+
+    @ApiProperty({
+        description: 'Arquivos anexados à mensagem',
+        required: false,
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {
+                name: { type: 'string' },
+                type: { type: 'string' },
+                content: { type: 'string' }
+            }
+        }
+    })
+    @IsOptional()
+    @IsArray()
+    files?: {
+        name: string;
+        type: string;
+        content: string;
+    }[];
 }
