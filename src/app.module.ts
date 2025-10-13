@@ -32,7 +32,14 @@ import { UserModule } from './user/user.module';
     UserModule,
     AuthModule,
     HospitalModule,
-    JwtModule, SchedulingModule, ExamModule, ArchiveModule, PatientModule, RoleModule, MailModule, ReportModule,
+    JwtModule, 
+    SchedulingModule, 
+    ExamModule, 
+    ArchiveModule, 
+    PatientModule, 
+    RoleModule, 
+    MailModule, 
+    ReportModule
   ],
   controllers: [
     AppController,
@@ -41,7 +48,6 @@ import { UserModule } from './user/user.module';
   providers: [
     AppService,
     PrismaService,
-    ChatGateway,
     {
       provide: APP_GUARD,
       useClass: RolesGuard,

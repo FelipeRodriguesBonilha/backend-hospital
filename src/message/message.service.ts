@@ -47,13 +47,9 @@ export class MessageService {
 
         if (!isMember) throw new ForbiddenException('Usuário não pertence à sala.');
 
-        const { files, ...messageData } = createMessageDto;
-
-        if (files?.length) this.validateFileTypes(files);
-
         const createdMessage = await this.prisma.message.create({
             data: {
-                ...messageData,
+                ...createMessageDto,
                 senderId: requesterUser.id,
             },
             include: {
@@ -62,8 +58,6 @@ export class MessageService {
                 archives: true,
             },
         });
-
-        if (files?.length) await this.handleFileArchives(createdMessage.id, createMessageDto, userId);
 
         return this.findById(createdMessage.id, userId);
     }
@@ -298,39 +292,31 @@ export class MessageService {
         return viewedCount === otherUsersInRoom.length;
     }
 
-    private async handleFileArchives(createdMessageId: string, createMessageDto: CreateMessageDto, userId: string) {
-        await fs.promises.mkdir(UPLOAD_FILES_DIR, { recursive: true });
+    async isMessageSeenByAllUsersWithoutAccessControl(messageId: string, roomId: string){
+        const usersInRoom = await this.prisma.roomUser.findMany({
+            where: { roomId },
+            select: { userId: true }
+        });
 
-        const multerFiles = await Promise.all(
-            createMessageDto.files.map(async (file) => {
-                const buffer = Buffer.from(file.content, 'base64');
-                const filename = generateStoredFilename(file.name);
-                const fullPath = path.join(UPLOAD_FILES_DIR, filename);
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId }
+        });
 
-                await fs.promises.writeFile(fullPath, buffer);
-
-                return {
-                    filename,
-                    originalname: file.name,
-                    mimetype: file.type,
-                    buffer,
-                    path: `uploads/${filename}`,
-                } as Express.Multer.File;
-            })
+        const otherUsersInRoom = usersInRoom.filter((user) =>
+            user.userId !== message.senderId
         );
 
-        await this.archiveService.create({
-            messageId: createdMessageId,
-        } as CreateArchiveDto, multerFiles, userId);
-    }
+        if (otherUsersInRoom.length === 0) return true;
 
-    private validateFileTypes(files: Array<{ type: string; name: string }>) {
-        for (const file of files) {
-            if (!ALLOWED_FILE_MIME_TYPES.includes(file.type as AllowedFileMimeType)) {
-                throw new BadRequestException(
-                    `Tipo de arquivo não permitido: ${file.type}. Apenas imagens (JPEG, PNG, GIF, WEBP, BMP, SVG) e PDFs são aceitos.`
-                );
+        const viewedCount = await this.prisma.messageViewedUser.count({
+            where: {
+                messageId,
+                userId: {
+                    in: otherUsersInRoom.map((user) => user.userId)
+                }
             }
-        }
+        });
+
+        return viewedCount === otherUsersInRoom.length;
     }
 }

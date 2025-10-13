@@ -33,7 +33,6 @@ export class RolesGuard implements CanActivate {
         }
 
         if (loginPayload.tokenType && loginPayload.tokenType !== 'access') {
-            console.log('entrou 2')
             return false;
         }
 

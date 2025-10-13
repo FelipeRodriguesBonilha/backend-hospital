@@ -94,10 +94,10 @@ export class ChatGateway {
   }
 
   private async emitSeenByAllForMessages(roomId: string, actorUserId: string, messages?: Message[]): Promise<void> {
-    const msgs = messages ?? (await this.messageService.findAllMessagesByRoom(roomId, actorUserId));
+    const msgs = messages ?? (await this.messageService.findAllMessagesByRoomWithoutAccessControl(roomId));
     await Promise.all(
       msgs.map(async (m) => {
-        const seenByAll = await this.messageService.isMessageSeenByAllUsers(m.id, roomId, actorUserId);
+        const seenByAll = await this.messageService.isMessageSeenByAllUsersWithoutAccessControl(m.id, roomId);
         if (seenByAll !== null && seenByAll !== undefined) {
           this.server.to(roomId).emit('message-seen-by-all', { messageId: m.id, seenByAll });
         }
@@ -176,12 +176,9 @@ export class ChatGateway {
 
       client.leave(dto.roomId);
 
-      await this.emitUsersInRoom(dto.roomId, user.id);
-      await this.emitUsersNotInRoom(user.hospitalId);
-
       this.logger.debug(`Usuário ${user.name} saiu da sala ${dto.roomId}`);
     } catch (error) {
-      this.logger.error(`Erro ao sair da sala: ${error?.message}`);
+      this.logger.error(`Erro ao desconectar da sala: ${error?.message}`);
       client.emit('error', { message: error?.message || 'Erro ao sair da sala' });
     }
   }
@@ -295,8 +292,15 @@ export class ChatGateway {
       await this.roomService.leaveRoom(dto, user.id);
       client.leave(dto.roomId);
 
-      const inRoom = await this.userService.findAllUsersInRoom(dto.roomId, user.id);
-      await Promise.all(inRoom.map(async (u) => this.emitRoomsToUser(u.id)));
+      const inRoom = await this.userService.findAllUsersInRoom(dto.roomId, user.id).catch(() => undefined);
+      const rooms = this.mapRoomsToDto(await this.roomService.findAllRoomsByUser(user.id));
+
+      if (!inRoom) {
+        this.server.to(user.id).emit('rooms', rooms);
+        return;
+      }
+
+      await Promise.all(inRoom.map(async (u: User) => this.emitRoomsToUser(u.id)));
 
       const msgs = await this.messageService.findAllMessagesByRoomWithoutAccessControl(dto.roomId);
       await this.emitSeenByAllForMessages(dto.roomId, user.id, msgs);
@@ -304,6 +308,7 @@ export class ChatGateway {
       await this.emitUsersInRoom(dto.roomId, user.id);
       await this.emitUsersNotInRoom(user.hospitalId);
 
+      this.server.to(user.id).emit('rooms', rooms);
       this.logger.log(`Usuário ${user.name} saiu da sala ${dto.roomId}`);
     } catch (error) {
       this.logger.error(`Erro ao sair da sala: ${error?.message}`);
@@ -340,8 +345,6 @@ export class ChatGateway {
   @SubscribeMessage('send-message')
   async sendMessage(@MessageBody() dto: CreateMessageDto, @ConnectedSocket() client: Socket) {
     try {
-      console.log(dto)
-
       this.logger.verbose(`send-message para sala ${dto.roomId} (len=${dto.content?.length ?? 0})`);
       const user = await this.getUserFromClient(client);
 
@@ -478,7 +481,7 @@ export class ChatGateway {
       client.emit('room-updated', updatedRoom);
 
       const inRoom = await this.userService.findAllUsersInRoom(data.id, actor.id);
-      await Promise.all(inRoom.map(async (u) => this.emitRoomsToUser(u.id)));
+      await Promise.all(inRoom.map(async (u: User) => this.emitRoomsToUser(u.id)));
 
       this.logger.log(`Sala atualizada: ${updatedRoom.name} (${updatedRoom.id})`);
     } catch (error) {

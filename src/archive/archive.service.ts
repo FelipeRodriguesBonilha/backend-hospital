@@ -33,33 +33,41 @@ export class ArchiveService {
   async create(
     createArchiveDto: CreateArchiveDto,
     files: Express.Multer.File[],
-    userId: string
+    userId: string,
+    isMessage = false
   ) {
     if (files.length === 0) {
       throw new BadRequestException('Pelo menos um arquivo deve ser enviado!');
     }
 
-    const [user, message] = await Promise.all([
-      this.userService.findByIdWithoutAccessControl(userId),
-      createArchiveDto.messageId
-        ? this.messageService.findById(createArchiveDto.messageId, userId)
-        : Promise.resolve(null)
-    ]);
+    if(isMessage){
+      const [user, message] = await Promise.all([
+        this.userService.findByIdWithoutAccessControl(userId),
+        createArchiveDto.messageId
+          ? this.messageService.findById(createArchiveDto.messageId, userId)
+          : Promise.resolve(null)
+      ]);
 
-    const userRole = user.role.name as Role;
+      if(!createArchiveDto.messageId){
+        throw new BadRequestException('Um mensagem deve atrelada a um arquivo!');
+      }
+  
+      const userRole = user.role.name as Role;
 
-    if (userRole === Role.AdministradorGeral && createArchiveDto.messageId) {
-      throw new ForbiddenException('Administrador geral não possui permissão para criar arquivos em mensagens.');
-    }
-
-    if (
-      [
-        Role.AdministradorHospital,
-        Role.Recepcionista,
-        Role.Medico
-      ].includes(userRole) && user.hospitalId !== message?.room?.hospitalId && createArchiveDto.messageId
-    ) {
-      throw new BadRequestException('Você não tem permissão para criar um arquivo nessa mensagem');
+      if (userRole === Role.AdministradorGeral && createArchiveDto.messageId) {
+        throw new ForbiddenException('Administrador geral não possui permissão para criar arquivos em mensagens.');
+      }
+  
+      if (
+        [
+          Role.AdministradorHospital,
+          Role.Recepcionista,
+          Role.Medico
+        ].includes(userRole) && (user.hospitalId !== message?.room?.hospitalId) && createArchiveDto.messageId &&
+        message?.senderId !== user.id
+      ) {
+        throw new BadRequestException('Você não tem permissão para criar um arquivo nessa mensagem');
+      }
     }
 
     return Promise.all(
