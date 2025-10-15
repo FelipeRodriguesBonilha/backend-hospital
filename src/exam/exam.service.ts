@@ -181,8 +181,6 @@ export class ExamService {
       }),
     ]);
 
-    if (total === 0) throw new NotFoundException('Exames não encontrados!');
-
     return {
       data: exams,
       page,

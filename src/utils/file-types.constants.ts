@@ -5,7 +5,6 @@ export const ALLOWED_IMAGE_MIME_TYPES = [
     'image/gif',
     'image/webp',
     'image/bmp',
-    'image/svg+xml',
 ] as const;
 
 export const ALLOWED_PDF_MIME_TYPE = 'application/pdf' as const;
